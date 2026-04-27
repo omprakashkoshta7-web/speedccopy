@@ -1,0 +1,58 @@
+========================================
+MANUAL GITHUB UPLOAD INSTRUCTIONS
+========================================
+
+This folder contains ONLY the source code files.
+Large folders (node_modules, dist) are excluded.
+
+STEP-BY-STEP UPLOAD:
+
+1. Open GitHub Repository:
+   https://github.com/snehakoshta/sneha_speedcopy
+
+2. Click "Add file" button (top right)
+   Then click "Upload files"
+
+3. Select ALL files from this folder:
+   - Press Ctrl+A to select all
+   - Or drag and drop the entire folder contents
+
+4. Wait for upload to complete
+   (This may take 2-3 minutes)
+
+5. Add commit message:
+   "Initial client code upload"
+
+6. Click "Commit changes"
+
+DONE! Your code will be on GitHub.
+
+========================================
+WHAT'S INCLUDED:
+========================================
+✅ src/ folder (all source code)
+✅ public/ folder (images and assets)
+✅ Configuration files (package.json, vite.config.ts, etc.)
+✅ .gitignore
+✅ .env.example (safe template)
+✅ README.md
+
+========================================
+WHAT'S EXCLUDED:
+========================================
+❌ node_modules/ (too large - 200MB+)
+❌ dist/ (build output - not needed)
+❌ .git/ (git history)
+❌ .env (sensitive credentials)
+
+========================================
+AFTER UPLOAD:
+========================================
+Other developers can clone and run:
+
+git clone https://github.com/snehakoshta/sneha_speedcopy.git
+cd sneha_speedcopy
+npm install
+npm run dev
+
+========================================
