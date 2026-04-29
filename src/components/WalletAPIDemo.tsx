@@ -40,9 +40,9 @@ const WalletAPIDemo: React.FC = () => {
       setBalance(response.data);
       setApiResult('balance', response);
       console.log('✅ Get Balance API:', response);
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Get Balance API failed:', error);
-      setApiResult('balance', { error: error.message });
+      setApiResult('balance', { error: error?.message || 'Unknown error' });
     } finally {
       setApiLoading('balance', false);
     }
@@ -56,9 +56,9 @@ const WalletAPIDemo: React.FC = () => {
       setOverview(response.data);
       setApiResult('overview', response);
       console.log('✅ Get Overview API:', response);
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Get Overview API failed:', error);
-      setApiResult('overview', { error: error.message });
+      setApiResult('overview', { error: error?.message || 'Unknown error' });
     } finally {
       setApiLoading('overview', false);
     }
@@ -72,9 +72,9 @@ const WalletAPIDemo: React.FC = () => {
       setLedger(response.data);
       setApiResult('ledger', response);
       console.log('✅ Get Ledger API:', response);
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Get Ledger API failed:', error);
-      setApiResult('ledger', { error: error.message });
+      setApiResult('ledger', { error: error?.message || 'Unknown error' });
     } finally {
       setApiLoading('ledger', false);
     }
@@ -88,9 +88,9 @@ const WalletAPIDemo: React.FC = () => {
       setTopupConfig(response.data);
       setApiResult('topupConfig', response);
       console.log('✅ Get Topup Config API:', response);
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Get Topup Config API failed:', error);
-      setApiResult('topupConfig', { error: error.message });
+      setApiResult('topupConfig', { error: error?.message || 'Unknown error' });
     } finally {
       setApiLoading('topupConfig', false);
     }
@@ -104,9 +104,9 @@ const WalletAPIDemo: React.FC = () => {
       setTopupPreview(response.data);
       setApiResult('previewTopup', response);
       console.log('✅ Preview Topup API:', response);
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Preview Topup API failed:', error);
-      setApiResult('previewTopup', { error: error.message });
+      setApiResult('previewTopup', { error: error?.message || 'Unknown error' });
     } finally {
       setApiLoading('previewTopup', false);
     }
@@ -119,9 +119,9 @@ const WalletAPIDemo: React.FC = () => {
       const response = await walletService.addFunds(50, 'test_payment');
       setApiResult('addFunds', response);
       console.log('✅ Add Funds API:', response);
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Add Funds API failed:', error);
-      setApiResult('addFunds', { error: error.message });
+      setApiResult('addFunds', { error: error?.message || 'Unknown error' });
     } finally {
       setApiLoading('addFunds', false);
     }
@@ -134,9 +134,9 @@ const WalletAPIDemo: React.FC = () => {
       const response = await walletService.initiateRazorpay(100);
       setApiResult('initiateRazorpay', response);
       console.log('✅ Initiate Razorpay API:', response);
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Initiate Razorpay API failed:', error);
-      setApiResult('initiateRazorpay', { error: error.message });
+      setApiResult('initiateRazorpay', { error: error?.message || 'Unknown error' });
     } finally {
       setApiLoading('initiateRazorpay', false);
     }
@@ -153,9 +153,9 @@ const WalletAPIDemo: React.FC = () => {
       );
       setApiResult('verifyRazorpay', response);
       console.log('✅ Verify Razorpay API:', response);
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Verify Razorpay API failed:', error);
-      setApiResult('verifyRazorpay', { error: error.message });
+      setApiResult('verifyRazorpay', { error: error?.message || 'Unknown error' });
     } finally {
       setApiLoading('verifyRazorpay', false);
     }
@@ -172,9 +172,9 @@ const WalletAPIDemo: React.FC = () => {
       });
       setApiResult('transactionHistory', response);
       console.log('✅ Transaction History API:', response);
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Transaction History API failed:', error);
-      setApiResult('transactionHistory', { error: error.message });
+      setApiResult('transactionHistory', { error: error?.message || 'Unknown error' });
     } finally {
       setApiLoading('transactionHistory', false);
     }

@@ -93,15 +93,15 @@ interface UpdateDesignData {
   };
 }
 
-// Frame interface
+// Frame interface - matches backend getProductFrames response exactly
 export interface Frame {
   _id: string;
-  id: string;
-  name: string;
-  frameName: string;
-  canvasJson: any;
-  thumbnail?: string;
-  image?: string;
+  id: string;           // same as _id (backend sends both)
+  name: string;         // design.name
+  frameName: string;    // same as name (backend sends both)
+  canvasJson: any;      // fabric canvas JSON
+  thumbnail?: string;   // design.previewImage
+  image?: string;       // same as thumbnail (backend sends both)
   dimensions?: {
     width?: number;
     height?: number;
@@ -455,13 +455,30 @@ class DesignService {
   }
 
   // Additional utility methods for backward compatibility
+  /**
+   * Get Product Frames
+   * GET /api/designs/product/:productId/frames
+   * Public route - no auth required
+   * Backend returns: { success, data: [{ _id, id, name, frameName, canvasJson, thumbnail, image, dimensions }] }
+   */
   async getProductFrames(productId: string): Promise<{ success: boolean; data: Frame[] }> {
     try {
-      const response = await apiClient.get(`/api/designs/product/${productId}/frames`);
-      return response.data;
+      console.log('🖼️ Getting frames for product:', productId);
+      const url = API_CONFIG.ENDPOINTS.DESIGNS.PRODUCT_FRAMES(productId);
+      const response = await apiClient.get(url);
+      console.log('✅ Product frames response:', response.data);
+
+      // Backend wraps in { success, data: [...] }
+      const frames: Frame[] = Array.isArray(response.data?.data)
+        ? response.data.data
+        : Array.isArray(response.data)
+        ? response.data
+        : [];
+
+      return { success: true, data: frames };
     } catch (error) {
-      console.warn('Product frames API not available, using fallback');
-      return this.wrapSuccess([]);
+      console.warn('⚠️ Product frames API not available, using fallback:', error);
+      return { success: false, data: [] };
     }
   }
 

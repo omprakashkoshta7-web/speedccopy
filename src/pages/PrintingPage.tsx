@@ -47,56 +47,71 @@ const PrintTypeModal: React.FC<{ onClose: () => void; printTypes: any[] }> = ({ 
   };
 
   return (
+    /* Full screen — light gray background exactly like the image */
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ 
-        backgroundColor: '#f5f5f5'
-      }}
-      onClick={onClose}
+      className="fixed inset-0 z-50 flex flex-col"
+      style={{ backgroundColor: '#d9d9d9' }}
     >
-      <div
-        className="w-full bg-white rounded-3xl p-8"
-        style={{ maxWidth: '900px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Close button */}
+      {/* Back button — top left like image */}
+      <div className="px-6 pt-6 pb-2">
         <button
           onClick={onClose}
-          className="absolute top-6 right-6 w-10 h-10 rounded-full flex items-center justify-center hover:bg-gray-100 transition"
+          className="flex items-center gap-2 text-gray-700 font-semibold hover:text-gray-900 transition"
+          style={{ fontSize: '16px' }}
         >
-          <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
+          Back
         </button>
+      </div>
 
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h2 className="font-bold text-gray-900 mb-2" style={{ fontSize: '28px' }}>
-            Select Binding Type
-          </h2>
-          <p className="text-gray-500" style={{ fontSize: '15px' }}>
-            Choose the binding option that best suits your document needs.
-          </p>
-        </div>
-
-        {/* 2x2 Grid */}
-        <div className="grid grid-cols-2 gap-4">
+      {/* 2x2 Grid of white cards — centered */}
+      <div className="flex-1 flex items-center justify-center px-6 pb-8">
+        <div
+          className="grid grid-cols-2 gap-5 w-full"
+          style={{ maxWidth: '700px' }}
+        >
           {printTypes.map((pt: any) => (
             <button
               key={pt.id || pt.label}
-              className="flex flex-col items-center justify-center py-10 px-6 rounded-2xl hover:bg-gray-50 transition text-center"
-              style={{ border: '1.5px solid #e5e7eb' }}
+              className="flex flex-col items-center justify-center text-center transition-all duration-200 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]"
+              style={{
+                backgroundColor: '#ffffff',
+                borderRadius: '28px',
+                padding: '40px 28px 36px',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+                border: 'none',
+                minHeight: '220px',
+              }}
               onClick={onClose}
             >
-              {/* Icon circle */}
+              {/* Icon circle — light gray like image */}
               <div
-                className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
-                style={{ backgroundColor: '#f3f4f6' }}
+                className="flex items-center justify-center mb-5"
+                style={{
+                  width: '72px',
+                  height: '72px',
+                  borderRadius: '50%',
+                  backgroundColor: '#ebebeb',
+                }}
               >
                 {getIcon(pt.icon)}
               </div>
-              <p className="font-bold text-gray-900 mb-1.5" style={{ fontSize: '17px' }}>{pt.name || pt.label}</p>
-              <p className="text-sm text-center" style={{ color: '#9ca3af' }}>{pt.description || pt.desc}</p>
+              {/* Title */}
+              <p
+                className="font-bold text-gray-900 mb-2"
+                style={{ fontSize: '18px', lineHeight: '1.3' }}
+              >
+                {pt.name || pt.label}
+              </p>
+              {/* Description */}
+              <p
+                className="text-sm leading-relaxed"
+                style={{ color: '#9ca3af', fontSize: '13px' }}
+              >
+                {pt.description || pt.desc}
+              </p>
             </button>
           ))}
         </div>

@@ -210,30 +210,35 @@ const GiftingCheckoutPage: React.FC = () => {
   const handleRazorpayPayment = async (orderData: any, totalAmount: number) => {
     try {
       console.log('🎯 Starting Razorpay payment for amount:', totalAmount);
-      
-      // Get Razorpay key
-      const razorpayKey = 'rzp_test_6vdMK3ln1NsDMj';
-      const orderId = `order_${Date.now()}`;
-      
-      console.log('🔑 Using Razorpay key:', razorpayKey);
-      console.log('📦 Order ID:', orderId);
-      console.log('💰 Amount in paise:', Math.round(totalAmount * 100));
-      
-      // Call openCheckout - it will load SDK if needed
+
+      // Create Razorpay payment order via payment service (uses VITE_RAZORPAY_KEY_ID from env)
+      const paymentResponse = await paymentService.createPayment({
+        orderId: `order_${Date.now()}`,
+        amount: totalAmount,
+        currency: 'INR'
+      });
+
+      console.log('🔑 Using Razorpay key:', paymentResponse.keyId?.substring(0, 8) + '...');
+      console.log('📦 Razorpay Order ID:', paymentResponse.razorpayOrderId);
+      console.log('💰 Amount in paise:', paymentResponse.amount);
+
+      // Open Razorpay checkout modal
       const checkoutResult = await paymentService.openCheckout({
-        keyId: razorpayKey,
-        amount: Math.round(totalAmount * 100),
-        currency: 'INR',
-        orderId: orderId,
+        keyId: paymentResponse.keyId,
+        amount: paymentResponse.amount,
+        currency: paymentResponse.currency,
+        orderId: paymentResponse.razorpayOrderId,
         name: 'SpeedCopy',
         description: `Gifting Order - ${orderData.items.length} item(s)`,
         purpose: 'gifting_order',
       });
-      
+
       console.log('✅ Payment completed:', checkoutResult);
 
-      await paymentService.verifyPayment(checkoutResult, totalAmount, true); // true = order payment, not wallet topup
+      // Verify payment (order payment, not wallet topup)
+      await paymentService.verifyPayment(checkoutResult, totalAmount, true);
 
+      // Create order with payment details
       const finalOrderData = {
         ...orderData,
         razorpayOrderId: checkoutResult.razorpayOrderId,
@@ -244,7 +249,7 @@ const GiftingCheckoutPage: React.FC = () => {
 
       const response = await orderService.createOrder(finalOrderData);
       const createdOrderId = response.data?._id;
-      
+
       if (createdOrderId) {
         navigate(`/payment-success?orderId=${createdOrderId}&paymentId=${checkoutResult.razorpayPaymentId}`);
       } else {

@@ -5,7 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import productService from '../services/product.service';
 import orderService from '../services/order.service';
 import BusinessCardCustomizer, { type BusinessCardCustomization } from '../components/BusinessCardCustomizer';
-import PrintTypeModal from '../components/PrintTypeModal';
+import ProductFramesSelector from '../components/ProductFramesSelector';
+import type { Frame } from '../services/design.service';
 
 type ProductVariant = {
   id?: string;
@@ -90,6 +91,8 @@ const ProductDetailPage: React.FC = () => {
   const [cartAdded, setCartAdded] = useState(false);
   const [cartError, setCartError] = useState('');
   const [businessCardCustomization, setBusinessCardCustomization] = useState<BusinessCardCustomization>({});
+  const [selectedFrame, setSelectedFrame] = useState<Frame | null>(null);
+  // Removed unused iconType variable
 
   useEffect(() => {
     if (!id) return;
@@ -105,7 +108,7 @@ const ProductDetailPage: React.FC = () => {
         : requestedFlow === 'shopping'
           ? await productService.getShoppingProductById(id!)
           : await productService.getProductById(id!);
-      const payload = response?.data || response;
+      const payload = (response?.data || response) as ProductRecord;
       setProduct(payload || null);
       setActiveImg(0);
       setSelectedVariantIndex(0);
@@ -221,7 +224,8 @@ const ProductDetailPage: React.FC = () => {
     try {
       setCartLoading(true);
       setCartError('');
-      await orderService.addToCart({
+      
+      const cartData: any = {
         productId: (product?._id || product?.id || id) as string,
         productName,
         flowType,
@@ -230,10 +234,17 @@ const ProductDetailPage: React.FC = () => {
         thumbnail: normalizedImages[0],
         unitPrice,
         totalPrice: unitPrice * qty,
-        customization: isPrintingProduct && (businessCardCustomization.uploadedImage || businessCardCustomization.textContent?.name) 
-          ? businessCardCustomization 
-          : undefined,
-      });
+      };
+      
+      // Add customization data if available for printing products
+      if (isPrintingProduct && (businessCardCustomization.uploadedImage || businessCardCustomization.textContent?.name)) {
+        cartData.options = {
+          customization: businessCardCustomization
+        };
+      }
+      
+      await orderService.addToCart(cartData);
+      
       if (redirectTo) {
         navigate(redirectTo, { state: { flow: flowType } });
       } else {
@@ -248,64 +259,7 @@ const ProductDetailPage: React.FC = () => {
     }
   };
 
-  const PrintTypeModal: React.FC<{ onClose: () => void; printTypes: any[] }> = ({ onClose, printTypes }) => {
-    const getIcon = (iconType: string) => {
-      // ...existing code...
-    };
-
-    return (
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/30 backdrop-blur-[6px]"
-        onClick={onClose}
-      >
-        <div
-          className="relative w-full bg-white rounded-3xl p-8"
-          style={{ maxWidth: '900px', boxShadow: '0 8px 32px 0 rgba(30,41,59,0.16)' }}
-          onClick={e => e.stopPropagation()}
-        >
-          {/* Close button */}
-          <button
-            onClick={onClose}
-            className="absolute top-6 right-6 w-10 h-10 rounded-full flex items-center justify-center hover:bg-gray-100 transition"
-          >
-            <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-          {/* Header */}
-          <div className="text-center mb-8">
-            <h2 className="font-bold text-gray-900 mb-2" style={{ fontSize: '28px' }}>
-              Select Binding Type
-            </h2>
-            <p className="text-gray-500" style={{ fontSize: '15px' }}>
-              Choose the binding option that best suits your document needs.
-            </p>
-          </div>
-          {/* 2x2 Grid */}
-          <div className="grid grid-cols-2 gap-4">
-            {printTypes.map((pt: any) => (
-              <button
-                key={pt.id || pt.label}
-                className="flex flex-col items-center justify-center py-10 px-6 rounded-2xl hover:bg-gray-50 transition text-center"
-                style={{ border: '1.5px solid #e5e7eb' }}
-                onClick={onClose}
-              >
-                {/* Icon circle */}
-                <div
-                  className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
-                  style={{ backgroundColor: '#f3f4f6' }}
-                >
-                  {getIcon(pt.icon)}
-                </div>
-                <p className="font-bold text-gray-900 mb-1.5" style={{ fontSize: '17px' }}>{pt.name || pt.label}</p>
-                <p className="text-sm text-center" style={{ color: '#9ca3af' }}>{pt.description || pt.desc}</p>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  };
+  // Render function removed - not used in this component
 
   if (loading) {
     return (
@@ -508,6 +462,17 @@ const ProductDetailPage: React.FC = () => {
               </div>
             )}
 
+            {/* Product Frames Selector - Show frames for this product */}
+            {product?._id && (
+              <div className="mb-6">
+                <ProductFramesSelector
+                  productId={product._id}
+                  onFrameSelect={setSelectedFrame}
+                  selectedFrameId={selectedFrame?._id}
+                />
+              </div>
+            )}
+
             {/* Qty + action buttons */}
             <div className="flex items-center gap-3 mb-4">
               {/* Qty stepper */}
@@ -639,24 +604,28 @@ const ProductDetailPage: React.FC = () => {
             {/* Feature cards */}
             {featureCards.length > 0 && (
               <div className="grid sm:grid-cols-2 gap-3">
-                {featureCards.map((item, i) => (
-                  <div key={i} className="flex items-start gap-3 p-4 bg-white rounded-xl" style={{ border: '1px solid #f3f4f6' }}>
-                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                      {i === 0 ? (
-                        <svg className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                        </svg>
-                      ) : (
-                        <svg className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                      )}
+                {featureCards.map((item, i) => {
+                  const IconComponent = i === 0 ? (
+                    <svg className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  );
+                  
+                  return (
+                    <div key={i} className="flex items-start gap-3 p-4 bg-white rounded-xl" style={{ border: '1px solid #f3f4f6' }}>
+                      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                        {IconComponent}
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-gray-900 mb-0.5">{item}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs font-bold text-gray-900 mb-0.5">{item}</p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

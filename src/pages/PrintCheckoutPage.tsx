@@ -242,7 +242,15 @@ const PrintCheckoutPage: React.FC = () => {
             quantity: printConfig.copies || 1,
             unitPrice: totalAmount / (printConfig.copies || 1),
             totalPrice: totalAmount,
-            printConfig: printConfig,
+            printConfig: {
+              paperSize: printConfig.pageSize || 'A4',
+              paperType: printConfig.paperType || 'Standard',
+              colorOption: printConfig.colorMode || 'B&W',
+              bindingType: printConfig.bindingType || 'None',
+              sides: printConfig.printSide || 'one-sided',
+              copies: printConfig.copies || 1,
+              pages: printConfig.totalPages || 0,
+            },
           }],
           shippingAddress: pickupLocation ? {
             fullName: pickupLocation.name || 'Pickup Location',
@@ -373,15 +381,19 @@ const PrintCheckoutPage: React.FC = () => {
           },
         };
         
-        const rzp = new window.Razorpay(options);
-        
-        rzp.on('payment.failed', function (response: any) {
-          console.error('❌ Payment failed:', response.error);
-          reject(new Error(response.error.description || 'Payment failed'));
-        });
-        
-        rzp.open();
-        console.log('🚀 Razorpay modal opened');
+        if (window.Razorpay) {
+          const rzp = new window.Razorpay(options);
+          
+          rzp.on('payment.failed', function (response: any) {
+            console.error('❌ Payment failed:', response.error);
+            reject(new Error(response.error.description || 'Payment failed'));
+          });
+          
+          rzp.open();
+          console.log('🚀 Razorpay modal opened');
+        } else {
+          reject(new Error('Razorpay SDK not loaded'));
+        }
       });
       
       console.log('✅ Payment completed, creating order...');

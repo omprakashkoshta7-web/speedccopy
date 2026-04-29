@@ -1,6 +1,7 @@
+// Design Editor Page - Fixed fabric v7 compatibility and sendObjectToBack method
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import * as fabric from 'fabric';
+import { fabric } from 'fabric';
 import { jsPDF } from 'jspdf';
 import {
   ArrowLeft,
@@ -26,6 +27,7 @@ import orderService from '../services/order.service';
 import productService from '../services/product.service';
 import designService, { type DesignTemplate, type SavedDesign } from '../services/design.service';
 import { useAuth } from '../context/AuthContext';
+import { API_CONFIG } from '../config/api.config';
 
 type ToolTab = 'images' | 'layouts' | 'text' | 'draw' | 'shapes';
 
@@ -69,10 +71,59 @@ const defaultPages = (): EditorPage[] => [
   { id: createPageId(), name: 'Front cover', json: null, thumbnail: makePlaceholderThumbnail('Front cover') },
 ];
 
+// Helper function to normalize image URLs to absolute URLs
+const normalizeImageUrl = (url: string): string => {
+  if (!url) return '';
+  
+  // If it's already a data URL or absolute URL, return as-is
+  if (url.startsWith('data:') || url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  
+  // If it's a relative URL, prepend the API base URL
+  if (url.startsWith('/')) {
+    const baseUrl = API_CONFIG.BASE_URL || window.location.origin;
+    return `${baseUrl}${url}`;
+  }
+  
+  // For other cases, treat as relative to API base
+  const baseUrl = API_CONFIG.BASE_URL || window.location.origin;
+  return `${baseUrl}/${url}`;
+};
+
+// Helper function to load image with Promise wrapper
+const loadImageAsync = (
+  url: string,
+  options?: any
+): Promise<fabric.Image> => {
+  return new Promise((resolve, reject) => {
+    const normalizedUrl = normalizeImageUrl(url);
+    console.log('[loadImageAsync] Loading image from:', normalizedUrl, '(original:', url, ')');
+    
+    fabric.Image.fromURL(
+      normalizedUrl,
+      (img: any) => {
+        if (!img) {
+          console.warn('[loadImageAsync] Failed to load image');
+          reject(new Error('Failed to load image'));
+        } else {
+          console.log('[loadImageAsync] Image loaded successfully:', img.width, 'x', img.height);
+          resolve(img);
+        }
+      },
+      { ...options, crossOrigin: 'anonymous' },
+      (err: any) => {
+        console.error('[loadImageAsync] Image load error:', err);
+        reject(err);
+      }
+    );
+  });
+};
+
 const DesignEditorPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { isAuthenticated, openLoginModal } = useAuth();
+  const { isAuthenticated } = useAuth();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [canvas, setCanvas] = useState<fabric.Canvas | null>(null);
@@ -105,7 +156,7 @@ const DesignEditorPage: React.FC = () => {
   const [savedDesignId, setSavedDesignId] = useState<string | null>(null);
 
   const productId = searchParams.get('productId');
-  const flow = searchParams.get('flow') || 'gifting';
+  const flow = (searchParams.get('flow') || 'gifting') as 'gifting' | 'shopping' | 'business_printing';
   const designMode = (searchParams.get('designMode') || 'normal') as 'premium' | 'normal';
   const categoryParam = searchParams.get('category') || '';
   const activePage = useMemo(
@@ -139,52 +190,114 @@ const DesignEditorPage: React.FC = () => {
     console.log('Active page ID:', activePageId);
   }, [pages, activePageId]);
 
-  // Load frames from API when productId changes
+    // Load frames from backend when productId changes
   useEffect(() => {
-    if (!productId) return;
+    if (!productId || !product) return;
     
-    const loadFramesFromAPI = async () => {
+    const loadFramesFromBackend = async () => {
       try {
-        console.log('Loading frames for product:', productId);
-        const frames = await designService.loadProductFrames(productId);
-        console.log('Frames loaded from API:', frames);
+        console.log('🎯 [loadFramesFromBackend] Starting - productId:', productId);
         
-        if (frames && frames.length > 0) {
-          // Convert API frames to EditorPage format
-          const editorPages: EditorPage[] = frames.map((frame: any) => ({
-            id: frame._id || frame.id || createPageId(),
-            name: frame.name || frame.frameName || 'Frame',
-            json: frame.canvasJson ? JSON.stringify(frame.canvasJson) : null,
-            thumbnail: frame.thumbnail || frame.image || makePlaceholderThumbnail(frame.name || 'Frame'),
+        // STEP 1: Try to load frames from backend API
+        try {
+          console.log('📡 [loadFramesFromBackend] Calling designService.loadProductFrames...');
+          const frames = await designService.loadProductFrames(productId);
+          console.log('✅ [loadFramesFromBackend] Frames loaded from API:', frames);
+          
+          if (frames && Array.isArray(frames) && frames.length > 0) {
+            console.log('✅ [loadFramesFromBackend] Found', frames.length, 'frames from backend');
+            
+            // Backend returns: { _id, id, name, frameName, canvasJson, thumbnail, image, dimensions }
+            const editorPages: EditorPage[] = frames.map((frame: any) => {
+              const pageId = frame._id?.toString() || frame.id?.toString() || createPageId();
+              const pageName = frame.frameName || frame.name || 'Frame';
+              
+              // If canvasJson exists, use it; otherwise we'll load the image as frame
+              const pageJson = frame.canvasJson ? JSON.stringify(frame.canvasJson) : null;
+              
+              // Use thumbnail or image URL from backend
+              const pageThumbnail = normalizeImageUrl(frame.thumbnail || frame.image || '');
+              
+              console.log(`  📄 Frame: ${pageName} (${pageId}), has JSON: ${!!pageJson}, thumbnail: ${pageThumbnail.substring(0, 50)}...`);
+              
+              return {
+                id: pageId,
+                name: pageName,
+                json: pageJson,
+                thumbnail: pageThumbnail,
+              };
+            });
+            
+            console.log('✅ [loadFramesFromBackend] Setting', editorPages.length, 'pages from backend frames');
+            setPages(editorPages);
+            
+            if (editorPages.length > 0 && !activePageId) {
+              console.log('✅ [loadFramesFromBackend] Setting activePageId to:', editorPages[0].id);
+              setActivePageId(editorPages[0].id);
+            }
+            return;
+          } else {
+            console.log('⚠️ [loadFramesFromBackend] No frames from backend (empty or null)');
+          }
+        } catch (apiError) {
+          console.warn('❌ [loadFramesFromBackend] Backend frames API error:', apiError);
+        }
+        
+        // STEP 2: Fallback - use product images as frames
+        console.log('📦 [loadFramesFromBackend] Using fallback - product images as frames');
+        
+        if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+          console.log('✅ [loadFramesFromBackend] Found', product.images.length, 'product images');
+          
+          const imageFrames: EditorPage[] = product.images.map((imageUrl: string, index: number) => ({
+            id: createPageId(),
+            name: `Frame ${index + 1}`,
+            json: null,
+            thumbnail: normalizeImageUrl(imageUrl),
           }));
           
-          console.log('Setting pages from API:', editorPages);
-          setPages(editorPages);
-          if (editorPages.length > 0) {
-            setActivePageId(editorPages[0].id);
+          console.log('✅ [loadFramesFromBackend] Setting', imageFrames.length, 'pages from product images');
+          setPages(imageFrames);
+          
+          if (imageFrames.length > 0 && !activePageId) {
+            console.log('✅ [loadFramesFromBackend] Setting activePageId to:', imageFrames[0].id);
+            setActivePageId(imageFrames[0].id);
+          }
+        } else if (product.thumbnail || product.image) {
+          // Single image fallback
+          console.log('✅ [loadFramesFromBackend] Using single product image as frame');
+          const singleFrame: EditorPage[] = [{
+            id: createPageId(),
+            name: 'Frame 1',
+            json: null,
+            thumbnail: normalizeImageUrl(product.thumbnail || product.image || ''),
+          }];
+          
+          setPages(singleFrame);
+          if (!activePageId) {
+            setActivePageId(singleFrame[0].id);
           }
         } else {
-          console.log('No frames from API, using default pages');
-          // Use default pages if no frames found
+          // No images at all - use default placeholder
+          console.log('⚠️ [loadFramesFromBackend] No product images found, using default placeholder');
           const defaultPagesData = defaultPages();
           setPages(defaultPagesData);
-          if (defaultPagesData.length > 0) {
+          if (defaultPagesData.length > 0 && !activePageId) {
             setActivePageId(defaultPagesData[0].id);
           }
         }
       } catch (error) {
-        console.error('Error loading frames from API:', error);
-        // Fallback to default pages on error
+        console.error('❌ [loadFramesFromBackend] Error loading frames:', error);
         const defaultPagesData = defaultPages();
         setPages(defaultPagesData);
-        if (defaultPagesData.length > 0) {
+        if (defaultPagesData.length > 0 && !activePageId) {
           setActivePageId(defaultPagesData[0].id);
         }
       }
     };
     
-    loadFramesFromAPI();
-  }, [productId]);
+    loadFramesFromBackend();
+  }, [productId, product]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const initializeEditor = async () => {
     try {
@@ -199,10 +312,10 @@ const DesignEditorPage: React.FC = () => {
       let productPayload: ProductRecord | null = null;
       try {
         const giftingResponse = await productService.getGiftingProductById(productId);
-        productPayload = giftingResponse?.data || giftingResponse;
+        productPayload = (giftingResponse?.data || giftingResponse) as ProductRecord;
       } catch {
         const genericResponse = await productService.getProductById(productId);
-        productPayload = genericResponse?.data || genericResponse;
+        productPayload = (genericResponse?.data || genericResponse) as ProductRecord;
       }
 
       setProduct(productPayload || null);
@@ -224,7 +337,7 @@ const DesignEditorPage: React.FC = () => {
         const nextCanvas = new fabric.Canvas(canvasRef.current, {
           width: canvasWidth,
           height: canvasHeight,
-          backgroundColor: '#ffffff',
+          backgroundColor: '#f5f5f5', // Light gray to see content
           preserveObjectStacking: true,
         });
 
@@ -327,46 +440,58 @@ const DesignEditorPage: React.FC = () => {
 
   const seedEmptySpread = (targetCanvas: fabric.Canvas) => {
     targetCanvas.clear();
-    targetCanvas.backgroundColor = '#ffffff';
+    targetCanvas.backgroundColor = '#f5f5f5'; // Light gray background to see frame
     
     // Load product image as frame with proper scaling
     if (product?.thumbnail || product?.image) {
       const imageUrl = product.thumbnail || product.image;
-      fabric.Image.fromURL(imageUrl, { crossOrigin: 'anonymous' }).then((img: any) => {
-        // STEP 1: Canvas size ko frame ke hisaab se set karo
-        const maxWidth = 900;
-        const scale = maxWidth / img.width;
-        
-        const newWidth = img.width * scale;
-        const newHeight = img.height * scale;
-        
-        // Update canvas dimensions
-        targetCanvas.setDimensions({ width: newWidth, height: newHeight });
-        
-        targetCanvas.clear();
-        
-        // STEP 2: Frame ko perfectly fit karo
-        img.set({
-          left: 0,
-          top: 0,
-          originX: 'left',
-          originY: 'top',
-          scaleX: scale,
-          scaleY: scale,
-          selectable: false,
-          evented: false,
-        });
-        
-        targetCanvas.add(img);
-        targetCanvas.sendObjectToBack(img);
-        targetCanvas.renderAll();
-        
-        console.log(`[seedEmptySpread] Frame: ${img.width}x${img.height}, scale: ${scale.toFixed(3)}, canvas: ${newWidth}x${newHeight}`);
-      }).catch((err) => {
-        console.warn('Failed to load frame image:', err);
-        targetCanvas.backgroundColor = '#f0f0f0';
-        targetCanvas.renderAll();
-      });
+      if (imageUrl) {
+        loadImageAsync(imageUrl)
+          .then((img: any) => {
+            if (!img) {
+              console.warn('Failed to load frame image');
+              targetCanvas.backgroundColor = '#f0f0f0';
+              targetCanvas.renderAll();
+              return;
+            }
+
+            // STEP 1: Canvas size ko frame ke hisaab se set karo
+            const maxWidth = 900;
+            const scale = maxWidth / img.width;
+            
+            const newWidth = img.width * scale;
+            const newHeight = img.height * scale;
+            
+            // Update canvas dimensions
+            targetCanvas.setDimensions({ width: newWidth, height: newHeight });
+            
+            targetCanvas.clear();
+            targetCanvas.backgroundColor = '#f5f5f5'; // Keep background visible
+            
+            // STEP 2: Frame ko perfectly fit karo
+            img.set({
+              left: 0,
+              top: 0,
+              originX: 'left',
+              originY: 'top',
+              scaleX: scale,
+              scaleY: scale,
+              selectable: false,
+              evented: false,
+              name: 'frame_background', // Add name to identify frame
+            });
+            
+            targetCanvas.add(img);
+            targetCanvas.renderAll();
+            
+            console.log(`[seedEmptySpread] ✅ Frame visible: ${img.width}x${img.height}, scale: ${scale.toFixed(3)}, canvas: ${newWidth}x${newHeight}`);
+          })
+          .catch((err: any) => {
+            console.warn('[seedEmptySpread] Failed to load frame image:', err);
+            targetCanvas.backgroundColor = '#f0f0f0';
+            targetCanvas.renderAll();
+          });
+      }
     } else {
       targetCanvas.backgroundColor = '#f0f0f0';
       targetCanvas.renderAll();
@@ -384,19 +509,34 @@ const DesignEditorPage: React.FC = () => {
   };
 
   const loadPageOnCanvas = async (targetCanvas: fabric.Canvas, page: EditorPage) => {
+    console.log('[loadPageOnCanvas] START - Page:', page.id, 'Has JSON:', !!page.json, 'Thumbnail:', page.thumbnail);
+    
     if (page.json) {
       await new Promise<void>((resolve) => {
         targetCanvas.loadFromJSON(page.json as any, () => {
           targetCanvas.renderAll();
+          console.log('[loadPageOnCanvas] Loaded from JSON');
           resolve();
         });
       });
     } else {
-      // Load product image as background with proper scaling
-      if (product?.thumbnail || product?.image) {
-        const imageUrl = product.thumbnail || product.image;
-        await new Promise<void>((resolve) => {
-          fabric.Image.fromURL(imageUrl, { crossOrigin: 'anonymous' }).then((img: any) => {
+      // Load frame image from page thumbnail (which contains product images)
+      const frameUrl = page.thumbnail || product?.thumbnail || product?.image;
+      
+      console.log('[loadPageOnCanvas] Frame URL:', frameUrl, 'Product:', product?.name);
+      
+      if (frameUrl) {
+        console.log('[loadPageOnCanvas] Starting image load from:', frameUrl);
+        
+        try {
+          // Use Promise-based image loading for proper async handling
+          const img = await loadImageAsync(frameUrl);
+          
+          if (!img || !img.width || !img.height) {
+            console.warn('[loadPageOnCanvas] Invalid image, using empty canvas');
+            seedEmptySpread(targetCanvas);
+          } else {
+            console.log('[loadPageOnCanvas] Image loaded successfully:', img.width, 'x', img.height);
             targetCanvas.clear();
             
             // STEP 1: Canvas size ko frame ke hisaab se set karo
@@ -409,6 +549,9 @@ const DesignEditorPage: React.FC = () => {
             // Update canvas dimensions
             targetCanvas.setDimensions({ width: newWidth, height: newHeight });
             
+            // Set visible background
+            targetCanvas.backgroundColor = '#f5f5f5';
+            
             // STEP 2: Frame ko perfectly fit karo
             img.set({
               left: 0,
@@ -419,22 +562,24 @@ const DesignEditorPage: React.FC = () => {
               scaleY: scale,
               selectable: false,
               evented: false,
+              name: 'frame_background', // Add name to identify frame
+              opacity: 1, // Ensure full opacity
             });
             
             targetCanvas.add(img);
-            targetCanvas.sendObjectToBack(img);
             targetCanvas.renderAll();
             
-            console.log(`[loadPageOnCanvas] Frame: ${img.width}x${img.height}, scale: ${scale.toFixed(3)}, canvas: ${newWidth}x${newHeight}`);
-            
-            resolve();
-          }).catch((err) => {
-            console.warn('Failed to load product image:', err);
-            seedEmptySpread(targetCanvas);
-            resolve();
-          });
-        });
+            console.log(`[loadPageOnCanvas] ✅ Frame loaded and VISIBLE: ${img.width}x${img.height}, scale: ${scale.toFixed(3)}, canvas: ${newWidth}x${newHeight}`);
+            console.log('[loadPageOnCanvas] Canvas objects count:', targetCanvas.getObjects().length);
+            console.log('[loadPageOnCanvas] Frame object:', img);
+          }
+        } catch (error) {
+          console.error('[loadPageOnCanvas] Error loading frame image:', error);
+          // Fall back to empty canvas on error
+          seedEmptySpread(targetCanvas);
+        }
       } else {
+        console.log('[loadPageOnCanvas] No frame URL available, using empty canvas');
         seedEmptySpread(targetCanvas);
       }
     }
@@ -444,6 +589,7 @@ const DesignEditorPage: React.FC = () => {
     setHistoryStep(0);
     setSelectedObjectType('');
     updatePageSnapshot(targetCanvas, page.id, false);
+    console.log('[loadPageOnCanvas] END - Snapshot updated');
   };
 
   const updatePageSnapshot = (targetCanvas: fabric.Canvas, pageId: string, pushHistory = true) => {
@@ -472,12 +618,25 @@ const DesignEditorPage: React.FC = () => {
     }
   };
 
+  // Load page on canvas when activePageId changes (not when pages change)
   useEffect(() => {
-    if (!canvas || !activePageId) return;
+    if (!canvas) {
+      return; // Silently return if canvas not ready
+    }
+    
+    if (!activePageId) {
+      return; // Silently return if no active page
+    }
+    
     const page = pages.find((entry) => entry.id === activePageId);
-    if (!page) return;
+    if (!page) {
+      console.log('⚠️ [useEffect] Page not found for activePageId:', activePageId);
+      return;
+    }
+    
+    console.log('✅ [useEffect] Loading page on canvas:', page.id, page.name);
     void loadPageOnCanvas(canvas, page);
-  }, [activePageId, canvas, pages.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activePageId, canvas]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     localStorage.setItem(
@@ -590,7 +749,7 @@ const DesignEditorPage: React.FC = () => {
     if (!canvas) return;
     const activeObject = canvas.getActiveObject();
     if (!activeObject) return;
-    canvas.bringObjectToFront(activeObject);
+    canvas.bringToFront(activeObject);
     canvas.renderAll();
     saveCanvasSnapshot(canvas);
   };
@@ -599,7 +758,7 @@ const DesignEditorPage: React.FC = () => {
     if (!canvas) return;
     const activeObject = canvas.getActiveObject();
     if (!activeObject) return;
-    canvas.sendObjectToBack(activeObject);
+    canvas.sendToBack(activeObject);
     ensureEmptyPageBase(canvas);
     canvas.renderAll();
     saveCanvasSnapshot(canvas);
@@ -720,39 +879,72 @@ const DesignEditorPage: React.FC = () => {
     console.log('[addImageToCanvas] Adding image from:', src.substring(0, 50) + '...');
     
     // For data URLs, don't use crossOrigin; for external URLs, use it
-    const options = src.startsWith('data:') ? {} : { crossOrigin: 'anonymous' };
+    const options: any = src.startsWith('data:') ? {} : { crossOrigin: 'anonymous' };
     
-    fabric.Image.fromURL(src, options).then((img: any) => {
-      console.log('[addImageToCanvas] Image loaded, dimensions:', img.width, 'x', img.height);
-      
-      // Position image in center of canvas
-      const centerX = canvas.width / 2;
-      const centerY = canvas.height / 2;
-      
-      img.set({
-        left: centerX,
-        top: centerY,
-        originX: 'center',
-        originY: 'center',
-        cornerColor: '#ff6a3d',
-        borderColor: '#ff6a3d',
-      });
-      img.scaleToWidth(210);
-      
-      canvas.add(img);
-      
-      // Bring image to front (above the frame)
-      canvas.bringObjectToFront(img);
-      
-      canvas.setActiveObject(img);
-      canvas.renderAll();
-      saveCanvasSnapshot(canvas);
-      
-      console.log('[addImageToCanvas] Image added at center (', centerX, ',', centerY, '), total objects:', canvas.getObjects().length);
-    }).catch((err: any) => {
-      console.error('[addImageToCanvas] Failed to add image:', err);
-      alert('Failed to add image to canvas. Check console for details.');
-    });
+    fabric.Image.fromURL(
+      src,
+      (img: any) => {
+        if (!img) {
+          console.error('[addImageToCanvas] Failed to load image');
+          alert('Failed to add image to canvas.');
+          return;
+        }
+
+        console.log('[addImageToCanvas] Image loaded, dimensions:', img.width, 'x', img.height);
+        
+        // Get canvas dimensions (frame size)
+        const frameWidth = canvas.width!;
+        const frameHeight = canvas.height!;
+        
+        // Calculate center position
+        const centerX = frameWidth / 2;
+        const centerY = frameHeight / 2;
+        
+        // Calculate optimal scale to fit image within frame
+        // Use 70% of frame size for better visibility
+        const maxWidth = frameWidth * 0.7;
+        const maxHeight = frameHeight * 0.7;
+        
+        // Calculate scale based on both width and height
+        const scaleX = maxWidth / img.width;
+        const scaleY = maxHeight / img.height;
+        const scale = Math.min(scaleX, scaleY); // Use smaller scale to fit within bounds
+        
+        // Set image properties
+        img.set({
+          left: centerX,
+          top: centerY,
+          originX: 'center',
+          originY: 'center',
+          scaleX: scale,
+          scaleY: scale,
+          cornerColor: '#ff6a3d',
+          borderColor: '#ff6a3d',
+          cornerSize: 12,
+          transparentCorners: false,
+          cornerStyle: 'circle',
+        });
+        
+        // Add image to canvas
+        canvas.add(img);
+        
+        // Bring image to front (above the frame)
+        canvas.bringToFront(img);
+        
+        // Select the image
+        canvas.setActiveObject(img);
+        canvas.renderAll();
+        saveCanvasSnapshot(canvas);
+        
+        console.log('[addImageToCanvas] ✅ Image added successfully');
+        console.log('  Position: (', centerX, ',', centerY, ')');
+        console.log('  Scale:', scale.toFixed(3));
+        console.log('  Frame size:', frameWidth, 'x', frameHeight);
+        console.log('  Image size:', (img.width * scale).toFixed(0), 'x', (img.height * scale).toFixed(0));
+        console.log('  Total objects:', canvas.getObjects().length);
+      },
+      options
+    );
   };
 
   const createPage = () => {
@@ -879,9 +1071,7 @@ const DesignEditorPage: React.FC = () => {
     // Check if user is logged in
     if (!isAuthenticated) {
       alert('Please login to add items to cart');
-      if (openLoginModal) {
-        openLoginModal();
-      }
+      navigate('/');
       return;
     }
 
@@ -923,7 +1113,7 @@ const DesignEditorPage: React.FC = () => {
         designId,
         thumbnail: designPreview, // Use compressed preview as thumbnail
         designPreview, // Also send as designPreview for cart display
-        designJson: null, // Don't send heavy JSON
+        designJson: '', // Don't send heavy JSON
         designName: `${product.name || 'Design'} editor`,
         options: {
           source: 'design-editor',
@@ -1022,14 +1212,23 @@ const DesignEditorPage: React.FC = () => {
                 <h4 className="text-sm font-semibold text-slate-900">Saved photos</h4>
                 <span className="text-xs text-slate-400">{uploadedAssets.length}</span>
               </div>
+              <p className="text-xs text-slate-500 mb-3">Click a photo to add it to the frame center</p>
               <div className="grid grid-cols-2 gap-3">
                 {uploadedAssets.map((asset, index) => (
                   <button
                     key={`${asset}-${index}`}
-                    onClick={() => addImageToCanvas(asset)}
-                    className="overflow-hidden rounded-2xl border border-gray-200 bg-[#fafafa]"
+                    onClick={() => {
+                      console.log('[Saved photos] Adding image:', asset);
+                      addImageToCanvas(asset);
+                    }}
+                    className="overflow-hidden rounded-2xl border border-gray-200 bg-[#fafafa] hover:border-[#ff6a3d] transition group"
                   >
-                    <img src={asset} alt={`Upload ${index + 1}`} className="h-24 w-full object-cover" />
+                    <div className="relative">
+                      <img src={asset} alt={`Upload ${index + 1}`} className="h-24 w-full object-cover" />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition flex items-center justify-center">
+                        <span className="text-white text-xs font-semibold opacity-0 group-hover:opacity-100">Add to frame</span>
+                      </div>
+                    </div>
                   </button>
                 ))}
               </div>
@@ -1380,12 +1579,17 @@ const DesignEditorPage: React.FC = () => {
               <span>{zoom}%</span>
             </div>
 
-            <div className="overflow-auto rounded-[26px] border border-[#eceae6] bg-[#efefed] p-5 max-h-[calc(100vh-280px)] flex items-start justify-center">
+            <div className="overflow-auto rounded-[26px] border border-[#eceae6] bg-[#efefed] p-5 max-h-[calc(100vh-280px)] flex items-start justify-center relative group">
+              {/* Canvas is visible but scaled down to look like thumbnail */}
               <div
                 className="origin-top transition-transform duration-200"
                 style={{ transform: `scale(${zoom / 100})` }}
               >
                 <canvas ref={canvasRef} className="block" />
+              </div>
+              {/* Overlay hint */}
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-lg bg-black/20 pointer-events-none">
+                <span className="text-white text-xs font-semibold">Add photos from left panel</span>
               </div>
             </div>
           </div>
@@ -1402,6 +1606,74 @@ const DesignEditorPage: React.FC = () => {
                 <div className="text-[11px] uppercase tracking-[0.16em] text-slate-400">Selection</div>
                 <div className="mt-1 text-sm font-medium text-slate-800">{selectedObjectType || 'No layer selected'}</div>
               </div>
+              
+              {/* Image Adjustment Controls */}
+              {selectedObjectType === 'image' && (
+                <div className="rounded-2xl bg-white px-4 py-3 border border-orange-200">
+                  <div className="text-[11px] uppercase tracking-[0.16em] text-orange-600 mb-3">Image Adjustments</div>
+                  
+                  {/* Scale Controls */}
+                  <div className="mb-3">
+                    <div className="text-xs text-slate-600 mb-2">Scale</div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          const obj = canvas?.getActiveObject();
+                          if (obj && canvas) {
+                            obj.scaleX = (obj.scaleX || 1) * 0.9;
+                            obj.scaleY = (obj.scaleY || 1) * 0.9;
+                            canvas.renderAll();
+                            saveCanvasSnapshot(canvas);
+                          }
+                        }}
+                        className="flex-1 rounded-lg bg-gray-100 px-3 py-2 text-xs font-medium hover:bg-gray-200"
+                      >
+                        <Minus size={12} className="inline" /> Smaller
+                      </button>
+                      <button
+                        onClick={() => {
+                          const obj = canvas?.getActiveObject();
+                          if (obj && canvas) {
+                            obj.scaleX = (obj.scaleX || 1) * 1.1;
+                            obj.scaleY = (obj.scaleY || 1) * 1.1;
+                            canvas.renderAll();
+                            saveCanvasSnapshot(canvas);
+                          }
+                        }}
+                        className="flex-1 rounded-lg bg-gray-100 px-3 py-2 text-xs font-medium hover:bg-gray-200"
+                      >
+                        <Plus size={12} className="inline" /> Larger
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Fit to Frame */}
+                  <button
+                    onClick={() => {
+                      const obj = canvas?.getActiveObject() as fabric.Image;
+                      if (obj && canvas && obj.width && obj.height) {
+                        const frameWidth = canvas.width!;
+                        const frameHeight = canvas.height!;
+                        const maxWidth = frameWidth * 0.7;
+                        const maxHeight = frameHeight * 0.7;
+                        const scaleX = maxWidth / obj.width;
+                        const scaleY = maxHeight / obj.height;
+                        const scale = Math.min(scaleX, scaleY);
+                        obj.scaleX = scale;
+                        obj.scaleY = scale;
+                        obj.left = frameWidth / 2;
+                        obj.top = frameHeight / 2;
+                        canvas.renderAll();
+                        saveCanvasSnapshot(canvas);
+                      }
+                    }}
+                    className="w-full rounded-lg bg-orange-100 px-3 py-2 text-xs font-medium text-orange-700 hover:bg-orange-200"
+                  >
+                    Fit to Frame
+                  </button>
+                </div>
+              )}
+              
               <button onClick={bringToFront} className="w-full rounded-2xl bg-gray-100 px-4 py-3 text-sm font-medium text-slate-700">
                 Bring to Front
               </button>

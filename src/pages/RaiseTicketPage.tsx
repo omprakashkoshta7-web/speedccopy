@@ -35,8 +35,8 @@ const RaiseTicketPage: React.FC = () => {
 
   const fetchRecentOrders = async () => {
     try {
-      const response = await orderService.getMyOrders({ limit: 5 });
-      const ordersData = response.data?.orders || response.data || [];
+      const response: any = await orderService.getMyOrders({ limit: 5 });
+      const ordersData = Array.isArray(response) ? response : (response.data?.orders || response.orders || response.data || []);
       setRecentOrders(ordersData);
     } catch (err) {
       console.error('Failed to fetch orders:', err);

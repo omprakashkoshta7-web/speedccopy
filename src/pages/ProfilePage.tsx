@@ -45,7 +45,7 @@ const ProfilePage: React.FC = () => {
       
       setForm({
         name: profile.name || '',
-        email: profile.email || '',
+        email: '', // Email field is not in UserProfile schema
         phone: profile.phone || '',
         gender: profile.gender ? profile.gender.charAt(0).toUpperCase() + profile.gender.slice(1) : '', // Capitalize first letter
         dob: profile.dateOfBirth ? profile.dateOfBirth.split('T')[0] : '', // Convert to YYYY-MM-DD format
@@ -294,26 +294,28 @@ const ProfilePage: React.FC = () => {
               />
             </div>
 
-            {/* Email */}
-            <div>
-              <label className={labelClass}>Email Address</label>
-              <div className="relative">
-                <input
-                  name="email"
-                  value={form.email}
-                  onChange={handleChange}
-                  className={inputClass}
-                  style={{ ...inputStyle, paddingRight: '44px', backgroundColor: '#fafafa', color: '#9ca3af' }}
-                  readOnly
-                />
-                <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                  <svg className="w-4 h-4" style={{ color: '#9ca3af' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
+            {/* Email - Hidden field, not in UserProfile schema */}
+            {form.email && (
+              <div>
+                <label className={labelClass}>Email Address</label>
+                <div className="relative">
+                  <input
+                    name="email"
+                    value={form.email}
+                    onChange={handleChange}
+                    className={inputClass}
+                    style={{ ...inputStyle, paddingRight: '44px', backgroundColor: '#fafafa', color: '#9ca3af' }}
+                    readOnly
+                  />
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                    <svg className="w-4 h-4" style={{ color: '#9ca3af' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Phone + Gender + DOB */}
             <div className="grid gap-4" style={{ gridTemplateColumns: '2fr 1fr 1.2fr' }}>

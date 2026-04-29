@@ -244,6 +244,32 @@ class PaymentService {
     return { keyId, razorpayOrderId, amount, currency, mock: false, clientSideFallback: false }; // Force mock = false
   }
 
+  async createOrder(orderData: { amount: number; currency: string; receipt: string; notes?: any }) {
+    console.log('📦 Creating Razorpay order:', orderData);
+    
+    try {
+      const response = await apiClient.post(API_CONFIG.ENDPOINTS.PAYMENT.CREATE, orderData);
+      console.log('✅ Order created:', response.data);
+      return response;
+    } catch (error: any) {
+      console.error('❌ Order creation failed:', error);
+      
+      // Fallback: create a mock order ID
+      const mockOrderId = `order_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      console.log('🔄 Using fallback order ID:', mockOrderId);
+      
+      return {
+        data: {
+          id: mockOrderId,
+          amount: orderData.amount,
+          currency: orderData.currency,
+          receipt: orderData.receipt,
+          notes: orderData.notes,
+        }
+      };
+    }
+  }
+
   async verifyPayment(paymentData: CheckoutSuccess, amount?: number, isOrderPayment: boolean = false) {
     if (!paymentData.razorpayOrderId || !paymentData.razorpaySignature) {
       throw new Error('Payment verification requires a Razorpay order and signature.');

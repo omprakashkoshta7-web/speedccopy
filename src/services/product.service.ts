@@ -599,6 +599,89 @@ class ProductService {
       };
     }
   }
+
+  /**
+   * Get business printing products (backward compatibility)
+   */
+  async getBusinessProducts(params?: {
+    category?: string;
+    limit?: number;
+    page?: number;
+  }): Promise<ApiResponse<{ products: Product[] }>> {
+    try {
+      const response = await this.getProducts({
+        flowType: 'printing',
+        category: params?.category,
+        limit: params?.limit,
+        page: params?.page
+      });
+      return {
+        success: true,
+        data: { products: response.data.products || [] },
+        message: 'Products fetched successfully'
+      };
+    } catch (error: any) {
+      console.error('Failed to get business products:', error);
+      return {
+        success: false,
+        data: { products: [] },
+        message: error.message || 'Failed to fetch products'
+      };
+    }
+  }
+
+  /**
+   * Get printing document types
+   */
+  async getPrintingDocumentTypes(): Promise<ApiResponse<any[]>> {
+    try {
+      const response = await apiClient.get(API_CONFIG.ENDPOINTS.PRODUCTS.PRINTING.DOCUMENT_TYPES);
+      return response.data;
+    } catch (error: any) {
+      console.error('Failed to get printing document types:', error);
+      return {
+        success: false,
+        data: [],
+        message: error.message || 'Failed to fetch document types'
+      };
+    }
+  }
+
+  /**
+   * Get uploaded files (placeholder - not implemented in backend)
+   */
+  async getUploadedFiles(): Promise<ApiResponse<any[]>> {
+    console.warn('getUploadedFiles is not implemented in backend');
+    return {
+      success: false,
+      data: [],
+      message: 'Not implemented'
+    };
+  }
+
+  /**
+   * Upload files (placeholder - not implemented in backend)
+   */
+  async uploadFiles(_formData: FormData): Promise<ApiResponse<any>> {
+    console.warn('uploadFiles is not implemented in backend');
+    return {
+      success: false,
+      data: null,
+      message: 'Not implemented'
+    };
+  }
+
+  /**
+   * Save business print config (placeholder - not implemented in backend)
+   */
+  async saveBusinessPrintConfig(_config: any): Promise<ApiResponse<any>> {
+    console.warn('saveBusinessPrintConfig is not implemented in backend');
+    return {
+      success: false,
+      data: null,
+      message: 'Not implemented'
+    };
+  }
 }
 
 // Export singleton instance

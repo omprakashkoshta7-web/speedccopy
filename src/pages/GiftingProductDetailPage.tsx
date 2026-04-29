@@ -84,8 +84,8 @@ const GiftingProductDetailPage: React.FC = () => {
       setLoading(true);
       setError('');
       const response = await productService.getGiftingProductById(id!);
-      const payload = response?.data || response;
-      setProduct(payload || null);
+      const payload = (response as any)?.data || response;
+      setProduct(payload as ProductRecord || null);
       setActiveImg(0);
       setSelectedVariantIndex(0);
     } catch (err: any) {
@@ -427,14 +427,14 @@ const GiftingProductDetailPage: React.FC = () => {
             {/* Action Buttons */}
             <div className="space-y-3">
               <button
-                onClick={() => navigate(`/design-editor?productId=${product?._id || product?.id || id}`)}
+                onClick={() => navigate(`/simple-frame-editor?productId=${product?._id || product?.id || id}&flow=gifting`)}
                 className="w-full px-6 py-3 rounded-full text-sm font-semibold transition flex items-center justify-center gap-2"
-                style={{ border: '1.5px solid #111111', backgroundColor: '#ffffff', color: '#111111' }}
+                style={{ border: '1.5px solid #ff6a3d', backgroundColor: '#ff6a3d', color: '#ffffff' }}
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                Upload Photo / Design
+                Upload Design
               </button>
 
               <button

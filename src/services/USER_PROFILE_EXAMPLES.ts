@@ -5,12 +5,10 @@
  * इन्हें अपने components में use कर सकते हो।
  */
 
-import userProfileService, {
-  UserProfile,
-  Address,
-  UpdateProfileData,
-  NotificationPreferences,
-  WishlistItem,
+import userProfileService from './user-profile.service';
+import type { 
+  UpdateProfileData, 
+  NotificationPreferences 
 } from './user-profile.service';
 
 // ============================================================================

@@ -1,6 +1,6 @@
 // API Configuration
 export const API_CONFIG = {
-  BASE_URL: import.meta.env.VITE_API_URL || '',
+  BASE_URL: import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_GATEWAY_URL || 'https://gateway-202671058278.asia-south1.run.app',
   TIMEOUT: 30000,
   ENDPOINTS: {
     // Auth
@@ -84,7 +84,7 @@ export const API_CONFIG = {
     // Finance
     FINANCE: {
       WALLET: '/api/wallet',
-      // WALLET_BALANCE: '/api/wallet/balance', // ❌ This endpoint doesn't exist - use WALLET instead
+      WALLET_BALANCE: '/api/wallet/balance',
       WALLET_OVERVIEW: '/api/wallet/overview',
       LEDGER: '/api/wallet/ledger',
       TRANSACTION_HISTORY: '/api/wallet/transactions',
@@ -166,6 +166,7 @@ export const API_CONFIG = {
       DESIGN_BY_ID: (id: string) => `/api/designs/${id}`,
       UPDATE_DESIGN: (id: string) => `/api/designs/${id}`,
       APPROVE_DESIGN: (id: string) => `/api/designs/${id}/approve`,
+      PRODUCT_FRAMES: (productId: string) => `/api/designs/product/${productId}/frames`,
     },
   },
 } as const;

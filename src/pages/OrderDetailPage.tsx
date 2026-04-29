@@ -113,7 +113,8 @@ const OrderDetailPage: React.FC = () => {
     try {
       setLoading(true);
       const response = await orderService.getOrderById(orderId!);
-      setOrder(response.data || response);
+      const orderData = (response as any).data || response;
+      setOrder(orderData);
     } catch (_err) {
       setError('Failed to load order details');
     } finally {

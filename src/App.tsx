@@ -8,6 +8,17 @@ import useAxiosLoader from './hooks/useAxiosLoader';
 import AuthStatusBanner from './components/AuthStatusBanner';
 import LoginModal from './components/LoginModal';
 
+// Editor routes jahan login banner nahi dikhana
+const EDITOR_ROUTES = ['/design-editor', '/simple-frame-editor', '/canvas-editor', '/card-editor'];
+
+// AuthStatusBanner wrapper — editor pages pe hide karo
+function AuthStatusBannerWrapper({ onLoginClick }: { onLoginClick: () => void }) {
+  const { pathname } = useLocation();
+  const isEditorPage = EDITOR_ROUTES.some(route => pathname.startsWith(route));
+  if (isEditorPage) return null;
+  return <AuthStatusBanner onLoginClick={onLoginClick} />;
+}
+
 // Scroll to top on every route change
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -83,6 +94,8 @@ const WishlistPage = lazy(() => import('./pages/WishlistPage'));
 const ContactSalesPage = lazy(() => import('./pages/ContactSalesPage'));
 const ProductListPage = lazy(() => import('./pages/ProductListPage'));
 const DesignEditorPage = lazy(() => import('./pages/DesignEditorPage'));
+const SimpleFrameEditorPage = lazy(() => import('./pages/SimpleFrameEditorPage'));
+const FrameEditorTestPage = lazy(() => import('./pages/FrameEditorTestPage'));
 const AddFundsPage = lazy(() => import('./pages/AddFundsPage'));
 const OrderTrackingFAQPage = lazy(() => import('./pages/OrderTrackingFAQPage'));
 const PaymentsFAQPage = lazy(() => import('./pages/PaymentsFAQPage'));
@@ -95,6 +108,8 @@ const LetterheadsListPage = lazy(() => import('./pages/LetterheadsListPage'));
 const CustomStationeryListPage = lazy(() => import('./pages/CustomStationeryListPage'));
 const ContactPage = lazy(() => import('./pages/ContactPage'));
 const CardEditorPage = lazy(() => import('./pages/CardEditorPage'));
+const BusinessCardCheckoutPage = lazy(() => import('./pages/BusinessCardCheckoutPage'));
+const CanvasEditorPage = lazy(() => import('./pages/CanvasEditorPage'));
 
 const RouteFallback: React.FC = () => (
   <div
@@ -116,7 +131,7 @@ const App: React.FC = () => {
           <BrowserRouter>
             <AxiosLoaderSetup />
             <TopLoadingBar />
-            <AuthStatusBanner onLoginClick={() => setShowLoginModal(true)} />
+            <AuthStatusBannerWrapper onLoginClick={() => setShowLoginModal(true)} />
             <ScrollToTop />
             <Suspense fallback={<RouteFallback />}>
           <Routes>
@@ -149,6 +164,9 @@ const App: React.FC = () => {
           <Route path="/product-list" element={<ProductListPage />} />
           <Route path="/products" element={<ProductListPage />} />
           <Route path="/design-editor" element={<DesignEditorPage />} />
+          <Route path="/canvas-editor" element={<CanvasEditorPage />} />
+          <Route path="/simple-frame-editor" element={<SimpleFrameEditorPage />} />
+          <Route path="/frame-editor-test" element={<FrameEditorTestPage />} />
           <Route path="/add-funds" element={<AddFundsPage />} />
           <Route path="/faq/order-tracking" element={<OrderTrackingFAQPage />} />
           <Route path="/faq/payments" element={<PaymentsFAQPage />} />
@@ -161,6 +179,7 @@ const App: React.FC = () => {
           <Route path="/custom-stationery" element={<CustomStationeryListPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/card-editor" element={<CardEditorPage />} />
+          <Route path="/business-card-checkout" element={<BusinessCardCheckoutPage />} />
         </Routes>
       </Suspense>
       {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} />}

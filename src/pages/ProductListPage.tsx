@@ -91,7 +91,7 @@ const ProductListPage: React.FC = () => {
           limit: 12,
           ...(selectedCat ? { category: selectedCat._id || selectedCat.id } : {}),
         });
-        const payload = response.data || {};
+        const payload: any = response.data || response || {};
         setProducts(payload.products || []);
         setTotalPages(Math.max(1, payload.meta?.pages || 1));
         setTotalProducts(payload.meta?.total || 0);
@@ -105,7 +105,7 @@ const ProductListPage: React.FC = () => {
           limit: 12,
           ...(selectedCat ? { category: selectedCat._id || selectedCat.id || activeTab } : {}),
         });
-        const payload = response.data || response || {};
+        const payload: any = response.data || response || {};
         setProducts(payload.products || []);
         setTotalPages(Math.max(1, payload.meta?.pages || 1));
         setTotalProducts(payload.meta?.total || 0);
@@ -115,7 +115,7 @@ const ProductListPage: React.FC = () => {
           limit: 12,
           ...(activeTab !== 'All Products' ? { category: activeTab } : {}),
         });
-        const payload = response.data || response || {};
+        const payload: any = response.data || response || {};
         setProducts(payload.products || []);
         setTotalPages(Math.max(1, payload.meta?.pages || 1));
         setTotalProducts(payload.meta?.total || 0);
@@ -127,7 +127,7 @@ const ProductListPage: React.FC = () => {
           limit: 12, 
           category 
         });
-        const payload = response.data || {};
+        const payload: any = response.data || response || {};
         setProducts(payload.products || []);
         setTotalPages(Math.max(1, payload.meta?.pages || 1));
         setTotalProducts(payload.meta?.total || 0);

@@ -36,7 +36,7 @@ const AddressPage: React.FC = () => {
     try {
       setLoading(true);
       const response = await userService.getAddresses();
-      const addressesData = response.data?.addresses || response.addresses || response.data || [];
+      const addressesData = response.data || [];
       setAddresses(Array.isArray(addressesData) ? addressesData : []);
     } catch (err: any) {
       console.error('Failed to fetch addresses:', err);
@@ -118,23 +118,20 @@ const AddressPage: React.FC = () => {
 
     try {
       setSavingId('new');
-      const formattedAddress = {
-        label: newAddressForm.type,
+      const formattedAddress: any = {
+        label: newAddressForm.type as 'Home' | 'Office' | 'Other',
         fullName: newAddressForm.name.trim(),
         phone: newAddressForm.phone.trim(),
         houseNo: newAddressForm.house.trim(),
         area: newAddressForm.area.trim(),
-        landmark: newAddressForm.landmark?.trim() || '',
         line1: `${newAddressForm.house.trim()}, ${newAddressForm.area.trim()}`,
-        line2: newAddressForm.landmark?.trim() || '',
         city: 'Mumbai',
         state: 'Maharashtra',
         pincode: newAddressForm.pincode.trim(),
         country: 'India',
-        isDefault: newAddressForm.isDefault || false,
       };
 
-      const response = await userService.addAddress(formattedAddress);
+      await userService.addAddress(formattedAddress);
       await fetchAddresses();
       setShowAddForm(false);
       setNewAddressForm({

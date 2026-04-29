@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { Upload, Image as ImageIcon, Palette, Type, Layout } from 'lucide-react';
+import React from 'react';
+import { Palette } from 'lucide-react';
 
 type BusinessCardCustomizerProps = {
-  onCustomizationChange: (data: BusinessCardCustomization) => void;
+  onCustomizationChange?: (data: BusinessCardCustomization) => void;
 };
 
 export type BusinessCardCustomization = {
@@ -20,7 +20,7 @@ export type BusinessCardCustomization = {
   layout?: string;
 };
 
-const BusinessCardCustomizer: React.FC<BusinessCardCustomizerProps> = ({ onCustomizationChange }) => {
+const BusinessCardCustomizer: React.FC<BusinessCardCustomizerProps> = () => {
   const handleCustomizeClick = () => {
     window.location.href = '/card-editor';
   };

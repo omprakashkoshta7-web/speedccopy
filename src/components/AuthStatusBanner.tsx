@@ -6,7 +6,6 @@ interface AuthStatusBannerProps {
 
 const AuthStatusBanner: React.FC<AuthStatusBannerProps> = ({ onLoginClick }) => {
   const [show, setShow] = useState(false);
-  const [tokenInfo, setTokenInfo] = useState<{ exists: boolean; preview?: string }>({ exists: false });
 
   useEffect(() => {
     const checkAuth = () => {
@@ -15,11 +14,9 @@ const AuthStatusBanner: React.FC<AuthStatusBannerProps> = ({ onLoginClick }) => 
       
       if (!token || !user) {
         setShow(true);
-        setTokenInfo({ exists: false });
         console.log('🔴 No authentication token found');
       } else {
         setShow(false);
-        setTokenInfo({ exists: true, preview: token.substring(0, 20) + '...' });
         console.log('✅ Authentication token present:', token.substring(0, 20) + '...');
       }
     };

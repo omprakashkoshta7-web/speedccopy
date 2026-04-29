@@ -90,8 +90,8 @@ const CartPage: React.FC = () => {
         })
       );
 
-      const suggestedPayload = suggestedResponse?.data?.products || suggestedResponse?.products || [];
-      setSuggested(suggestedPayload);
+      const suggestedPayload = suggestedResponse?.data || [];
+      setSuggested(Array.isArray(suggestedPayload) ? suggestedPayload : []);
     } catch (err: any) {
       console.error('Failed to fetch cart:', err);
       

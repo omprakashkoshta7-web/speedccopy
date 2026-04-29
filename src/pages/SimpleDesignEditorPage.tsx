@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import * as fabric from 'fabric';
+import { fabric } from 'fabric';
 import { ArrowLeft, Download, Plus, Trash2, Type, Upload } from 'lucide-react';
 import productService from '../services/product.service';
 import orderService from '../services/order.service';
@@ -8,7 +8,7 @@ import orderService from '../services/order.service';
 interface Product {
   _id: string;
   name: string;
-  image: string;
+  images?: string[];
   thumbnail?: string;
   sale_price?: number;
   discountedPrice?: number;
@@ -48,8 +48,18 @@ const SimpleDesignEditorPage: React.FC = () => {
 
         // Fetch product data
         const response = await productService.getGiftingProductById(productId);
-        const productData = response?.data || response;
-        setProduct(productData);
+        const productData = (response?.data || response) as any;
+        
+        // Set product data
+        setProduct({
+          _id: productData._id || '',
+          name: productData.name || 'Product',
+          images: productData.images,
+          thumbnail: productData.thumbnail,
+          sale_price: productData.sale_price,
+          discountedPrice: productData.discountedPrice || productData.sale_price,
+          basePrice: productData.basePrice || productData.mrp || productData.sale_price
+        });
 
         // Initialize canvas
         if (canvasRef.current) {
@@ -61,10 +71,15 @@ const SimpleDesignEditorPage: React.FC = () => {
 
           setCanvas(newCanvas);
 
-          // STEP 2: Load frame image from product
-          const frameUrl = productData?.image || productData?.thumbnail;
+          // STEP 2: Load frame image from product (if available)
+          const frameUrl = productData.images?.[0] || productData.thumbnail;
           if (frameUrl) {
+            console.log('Product has frame image, loading:', frameUrl);
             loadFrameImage(newCanvas, frameUrl);
+          } else {
+            console.log('No frame image available, using blank canvas');
+            // Just render the blank canvas
+            newCanvas.renderAll();
           }
         }
       } catch (err: any) {
@@ -80,25 +95,51 @@ const SimpleDesignEditorPage: React.FC = () => {
 
   // STEP 3: Load frame image as background
   const loadFrameImage = (targetCanvas: fabric.Canvas, imageUrl: string) => {
-    fabric.Image.fromURL(imageUrl, { crossOrigin: 'anonymous' })
-      .then((img: any) => {
+    // Handle relative URLs - convert to absolute if needed
+    let fullImageUrl = imageUrl;
+    if (imageUrl && !imageUrl.startsWith('http')) {
+      // If it's a relative path, prepend the base URL
+      fullImageUrl = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
+    }
+
+    console.log('Loading frame image from:', fullImageUrl);
+
+    // Use FabricImage.fromURL for fabric v7
+    fabric.FabricImage.fromURL(fullImageUrl, { crossOrigin: 'anonymous' })
+      .then((img) => {
+        if (!img || !img.width || !img.height) {
+          console.warn('Invalid image loaded, using default background');
+          targetCanvas.backgroundColor = '#ffffff';
+          targetCanvas.renderAll();
+          return;
+        }
+
         // Scale image to fit canvas
+        const canvasWidth = targetCanvas.width || 600;
+        const canvasHeight = targetCanvas.height || 400;
+        const imgWidth = img.width || 1;
+        const imgHeight = img.height || 1;
+        
         const scale = Math.min(
-          targetCanvas.width / img.width,
-          targetCanvas.height / img.height
+          canvasWidth / imgWidth,
+          canvasHeight / imgHeight
         );
         img.scale(scale);
         img.set({
-          left: (targetCanvas.width - img.width * scale) / 2,
-          top: (targetCanvas.height - img.height * scale) / 2,
+          left: (canvasWidth - imgWidth * scale) / 2,
+          top: (canvasHeight - imgHeight * scale) / 2,
           selectable: false,
           evented: false,
         });
-        targetCanvas.setBackgroundImage(img, targetCanvas.renderAll.bind(targetCanvas));
+        
+        // Set as background image using the correct method
+        targetCanvas.set('backgroundImage', img);
+        targetCanvas.renderAll();
       })
       .catch((err) => {
-        console.warn('Failed to load frame image:', err);
-        targetCanvas.backgroundColor = '#f0f0f0';
+        console.warn('Failed to load frame image:', err, 'URL:', fullImageUrl);
+        // Set a clean white background instead
+        targetCanvas.backgroundColor = '#ffffff';
         targetCanvas.renderAll();
       });
   };
@@ -129,8 +170,8 @@ const SimpleDesignEditorPage: React.FC = () => {
       const reader = new FileReader();
       reader.onload = (event) => {
         const imageUrl = event.target?.result as string;
-        fabric.Image.fromURL(imageUrl, { crossOrigin: 'anonymous' })
-          .then((img: any) => {
+        fabric.FabricImage.fromURL(imageUrl, { crossOrigin: 'anonymous' })
+          .then((img) => {
             img.scaleToWidth(200);
             img.set({
               left: Math.random() * (canvas.width - 200),
